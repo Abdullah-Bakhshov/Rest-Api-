@@ -1,0 +1,25 @@
+REST API
+
+Client Server seperation:
+    - client can only make requests for the server
+    - server handles the requests and gives appropriate information back, either account info with history
+        , processed video or public clips.
+
+
+Uniform Interface:
+    - Standerdise requests and responses from clients and servers, use http:
+
+        GET: To retrieve a resource.
+
+        POST: To create a new resource.
+
+        PUT: To edit or update an existing resource.
+
+        DELETE: To delete a resource.
+Stateless:
+    - We don't require the server to remember anything and each task is seperate such that any thread can pick
+      up any task.
+
+Caching:
+    - We can have caching occur on local devices such that when they open the app they don't need to make a request
+      everytime.
