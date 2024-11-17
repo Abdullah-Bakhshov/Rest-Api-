@@ -1,13 +1,29 @@
 #include "crow.h"
 #include <asio.hpp>
 
+// request data we are then processing
+struct ContextData{
+
+    // local data where we store the parsed data, intermediate for the other service to handle
+    struct context{};
+
+    // takes input to api and standerdises it
+    void before_handle(crow::request &req, crow::response &res, context &ctx){
+
+    }
+
+    // after we are finished with intermediate service we then send it back to client in this format
+    void after_handle(crow::request &req, crow::response &res, context &ctx){
+
+    }
+};
 
 
 
 int main(){
 
     // Instance of the api server I'm creating
-    crow::SimpleApp server;
+    crow::App<ContextData> server;
 
     // Route for root
     CROW_ROUTE(server, "/")
