@@ -16,6 +16,7 @@ Uniform Interface:
         PUT: To edit or update an existing resource.
 
         DELETE: To delete a resource.
+
 Stateless:
     - We don't require the server to remember anything and each task is seperate such that any thread can pick
       up any task.
@@ -23,3 +24,7 @@ Stateless:
 Caching:
     - We can have caching occur on local devices such that when they open the app they don't need to make a request
       everytime.
+
+server:
+
+    - take json 

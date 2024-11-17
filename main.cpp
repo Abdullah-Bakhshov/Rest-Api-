@@ -21,9 +21,19 @@ int main(){
         return "this is where machine learning will take place";
     });
 
-    // Route for video data
-    CROW_ROUTE(server, "/video_meta")
+
+    // SETTING THE ROUTES FOR VIDEO DATA
+
+    // Route for setting video data in the data base
+    CROW_ROUTE(server, "/video_meta_storing").methods(crow::HTTPMethod::PUT)
     ([](){
+        return "this is where we store data for video data"; 
+    });
+
+    // Route for getting video data from the data base
+    CROW_ROUTE(server, "/video_meta_history").methods(crow::HTTPMethod::GET)
+    ([](){
+        // handles what we send back to the client
         return "this is where we call on the data base for video data";
     });
 
