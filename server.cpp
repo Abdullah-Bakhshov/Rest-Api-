@@ -53,7 +53,7 @@ int main(){
         return "this is where we call on the data base for video data";
     });
 
-    // Runs server, set default port to default ~ 80 and used threading to handle multiple calls
+    // Runs server, set default port to default (80) and used threading to handle multiple requests
     server.port(80).multithreaded().run();
 
     // Success

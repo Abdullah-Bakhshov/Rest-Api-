@@ -25,6 +25,25 @@ Caching:
     - We can have caching occur on local devices such that when they open the app they don't need to make a request
       everytime.
 
-server:
+Server:
+    
+    Machine Learning Component:
+    
+    - PUT request for uploading video file.
+    - GET request for getting data back.
+    - For machine learning component we take a video which then we process into the video 
+      format which then can be fed into the ml model.
+    - We then take the video we have created and send a highlight which [int,int] of when 
+      the fastest smash was in seconds with then a int of how fast it was. We can also return 
+      a percentage of how long someone is in a certain area. and that can return a dictionary.
 
-    - take json 
+    Clips Component:
+
+    Firebase is where the db will be held or AWS and videos
+
+    - GET request and it will go into db to access the video and it will then upload.
+    
+    Match History Component:
+
+    - PUT request into api and api will send to firebase and upload it with all its other data.
+    - GET request retreiving the data.
