@@ -1,7 +1,7 @@
 #include "crow.h"
 #include <asio.hpp>
 
-// request data we are then processing
+// request data we are then processing, middleware
 struct ContextData{
 
     // local data where we store the parsed data, intermediate for the other service to handle
@@ -31,11 +31,32 @@ int main(){
         return "this is root";
     });
 
-    // Route for video processing
-    CROW_ROUTE(server, "/video_process")
+    
+    
+    
+    
+    
+    
+    // MACHINE LEARNING ROUTING
+    
+    // Route for uploading video processing - machine learning
+
+    CROW_ROUTE(server, "/uploading_to_ml_model").methods(crow::HTTPMethod::PUT)
     ([](){
-        return "this is where machine learning will take place";
+        return "this is where machine learning will take place"; // this will give error we want to return a request to a cv2 model
     });
+
+    // Route for retrieving the video processing
+
+    CROW_ROUTE(server, "/retrieving_the_ml_model").methods(crow::HTTPMethod::GET)
+    ([](){
+        return "this will return the highlight timing and court coverage";
+    }); 
+
+
+
+
+
 
 
     // SETTING THE ROUTES FOR VIDEO DATA
