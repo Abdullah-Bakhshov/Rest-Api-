@@ -37,11 +37,6 @@ int main(){
     });
 
     
-    
-    
-    
-    
-    
     // MACHINE LEARNING ROUTING
     
     // Route for uploading video processing - machine learning
@@ -59,27 +54,26 @@ int main(){
             return crow::response(400, "the file send was empty or not found");
         }
 
-
         // define a path to save the video to and the name of the file
         const std::string temp_file = "uploaded_video.mp4";
 
-        // Save the file content to the filesystem as a binary file
+        // Save the file content to the filesystem as a text file opened as a binary file
         std::ofstream out(temp_file, std::ios::binary);
 
         // iterating through the parts of the message, msg.parts is a vector of parts
         for (const auto& part: msg.parts){
-            // check if the header is correct => video/mp4
+            // check if the header is correct => exoecting video/mp4
             // we are checking the map for the key with the value of "Content-Type"
             const std::string content_type = part.get_header_object("Content-Type").value;
             // we check if we found the header and if its value is a video file
             if (content_type.empty() || content_type != "video/mp4") {
-                return crow::response(400, "the file is not a video file");
+                return crow::response(400, "the file is not a video file or it does not have a type");
             }
             // if we dont get a output from file we return a 500 error
             if (!out) {
-                return crow::response(500, "Failed to save the file to disk.");
-            } 
-            // we write the body of the part to the file
+                return crow::response(500, "failed to save the file to disk.");
+            }
+            // we write the body of the part to the file, .data() is the pointer and the .size() is the size of the datab
             out.write(part.body.data(), part.body.size());
         }
         // closing the file
