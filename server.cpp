@@ -2,7 +2,9 @@
 #include <asio.hpp>
 #include <fstream>
 #include <iostream>
-#include <filesystem> 
+#include <filesystem>
+#include <mysqlx/xdevapi.h>
+
 
 // // request data we are then processing, middleware
 // // struct ContextData{
@@ -127,6 +129,20 @@ int main(){
         // handles what we send back to the client
         return "this is where we call on the data base for video data";
     });
+
+
+
+
+    // SETTING THE ROUTES FOR USER DATA
+
+    // Route for setting user data in the data base
+    CROW_ROUTE(server, "/user_meta_retrieving").methods(crow::HTTPMethod::GET)
+    ([](){
+        return "this is where we store data for user data";
+    });
+
+
+
 
     // Runs server, set default port to default (80) and used threading to handle multiple requests
     server.port(80).multithreaded().run();

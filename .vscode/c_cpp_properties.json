@@ -6,7 +6,7 @@
                 "${workspaceFolder}/**",
                 "/opt/homebrew/Cellar/crow/1.2.0/include",
                 "/opt/homebrew/opt/asio/include",
-                "/opt/homebrew/opt/mysql-connector-c++/include"
+                "/opt/homebrew/opt/mysql-connector-c++/include/mysql-cppconn-8"
             ],
             "defines": [],
             "macFrameworkPath": [
