@@ -138,7 +138,32 @@ int main(){
     // Route for setting user data in the data base
     CROW_ROUTE(server, "/user_meta_retrieving").methods(crow::HTTPMethod::GET)
     ([](){
-        return "this is where we store data for user data";
+    try {
+        mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+        mysqlx::Schema schema = session.getSchema("restapi");
+        mysqlx::Table table = schema.getTable("Account");
+        mysqlx::RowResult result = table.select("*").execute();
+        std::string response = "Account Data:\n";
+
+        for (mysqlx::Row row : result) {
+            std::stringstream ss;
+            ss << "username: " << row[0] << ", "; 
+            ss << "password: " << row[1] << ", ";
+            ss << "email: " << row[2] << "\n";
+            response += ss.str();
+        }
+
+        // Return the response
+        return crow::response(response);
+
+    } catch (const mysqlx::Error &err) {
+        return crow::response(500, "MySQL Error: " + std::string(err.what()));
+    } catch (std::exception &ex) {
+        return crow::response(500, "Standard Exception: " + std::string(ex.what()));
+    } catch (...) {
+        return crow::response(500, "Unknown Error");
+    }
+
     });
 
 
