@@ -136,25 +136,40 @@ int main(){
     // SETTING THE ROUTES FOR USER DATA
 
     // Route for setting user data in the data base
-    CROW_ROUTE(server, "/user_meta_retrieving").methods(crow::HTTPMethod::GET)
-    ([](){
+    CROW_ROUTE(server, "/user_meta_retrieving").methods(crow::HTTPMethod::PUT)
+    ([](const crow::request& req){
     try {
+        
+        if (req.body == ""){
+            return crow::response(400, "No username provided");
+        }
+
+
+        std::cout << req.body << std::endl;
         mysqlx::Session session("127.0.0.1", 33060, "root", "test");
         mysqlx::Schema schema = session.getSchema("restapi");
         mysqlx::Table table = schema.getTable("Account");
-        mysqlx::RowResult result = table.select("*").execute();
+        mysqlx::RowResult result = table.select("username", "password")
+                                         .where("username = :username")
+                                         .bind("username", req.body)
+                                         .execute();
+
+
         std::string response = "";
 
-        for (mysqlx::Row row : result) {
-            std::stringstream ss;
-            // username
-            ss << row[1] << ","; 
-            // password
-            ss << row[2];
-            // email
-            // ss << "email: " << row[3] << "\n";
-            response += ss.str();
+        if (auto row = result.fetchOne()) {
+            response += row[0].get<std::string>() + "," + row[1].get<std::string>();
         }
+
+        // for (mysqlx::Row row : result) {
+        //     std::stringstream ss;
+        //     // username
+        //     ss << row[0] << ","; 
+        //     // password
+        //     ss << row[1];
+        //     response += ss.str();
+        // }
+        std::cout << response << std::endl;
         return crow::response(response);
 
     } catch (const mysqlx::Error &err) {
