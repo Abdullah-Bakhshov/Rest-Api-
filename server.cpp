@@ -143,17 +143,18 @@ int main(){
         mysqlx::Schema schema = session.getSchema("restapi");
         mysqlx::Table table = schema.getTable("Account");
         mysqlx::RowResult result = table.select("*").execute();
-        std::string response = "Account Data:\n";
+        std::string response = "";
 
         for (mysqlx::Row row : result) {
             std::stringstream ss;
-            ss << "username: " << row[0] << ", "; 
-            ss << "password: " << row[1] << ", ";
-            ss << "email: " << row[2] << "\n";
+            // username
+            ss << row[1] << ","; 
+            // password
+            ss << row[2];
+            // email
+            // ss << "email: " << row[3] << "\n";
             response += ss.str();
         }
-
-        // Return the response
         return crow::response(response);
 
     } catch (const mysqlx::Error &err) {
@@ -163,7 +164,6 @@ int main(){
     } catch (...) {
         return crow::response(500, "Unknown Error");
     }
-
     });
 
 
