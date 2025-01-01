@@ -175,10 +175,9 @@ int main(){
     ([](const crow::request& req){
         try {
             if (req.body == ""){
-                return crow::response(400, "No data provided");
+                return crow::response(400, "");
             }
 
-            // Split username and password
             std::string body = req.body;
             size_t comma = body.find(',');
             if (comma == std::string::npos) {
@@ -188,7 +187,6 @@ int main(){
             std::string username = body.substr(0, comma);
             std::string password = body.substr(comma + 1);
 
-            // Insert into database
             mysqlx::Session session("127.0.0.1", 33060, "root", "test");
             mysqlx::Schema schema = session.getSchema("restapi");
             mysqlx::Table table = schema.getTable("Account");
@@ -198,6 +196,162 @@ int main(){
                  .execute();
 
             return crow::response(200, "User created successfully");
+
+        } catch (const mysqlx::Error &err) {
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        } catch (std::exception &ex) {
+            return crow::response(500, "Standard Exception: " + std::string(ex.what()));
+        } catch (...) {
+            return crow::response(500, "Unknown Error");
+        }
+    });
+
+
+    CROW_ROUTE(server, "/user_meta_storingclips").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        try {
+            if (req.body.empty()) {
+                return crow::response(400, "Empty request body");
+            }
+
+            // Parse username and clipId from request body
+            std::string body = req.body;
+            size_t comma = body.find(',');
+            if (comma == std::string::npos) {
+                return crow::response(400, "Invalid format: expected 'username,clipId'");
+            }
+            
+            std::string username = body.substr(0, comma);
+            std::string clipId = body.substr(comma + 1);
+
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
+
+            // First, get the existing clips (if any)
+            mysqlx::RowResult result = table.select("clipskeys")
+                                           .where("username = :username")
+                                           .bind("username", username)
+                                           .execute();
+
+            if (auto row = result.fetchOne()) {
+                std::string existingClips;
+                // Check if the value is NULL
+                if (!row[0].isNull()) {
+                    existingClips = row[0].get<std::string>();
+                }
+                
+                std::string updatedClips = existingClips.empty() ? clipId : existingClips + "," + clipId;
+                
+                table.update()
+                     .set("clipskeys", updatedClips)
+                     .where("username = :username")
+                     .bind("username", username)
+                     .execute();
+            } else {
+                // If no existing clips, just set the new clipId
+                table.update()
+                     .set("clipskeys", clipId)
+                     .where("username = :username")
+                     .bind("username", username)
+                     .execute();
+            }
+
+            return crow::response(200, "Clips updated successfully");
+
+        } catch (const mysqlx::Error &err) {
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        } catch (std::exception &ex) {
+            return crow::response(500, "Standard Exception: " + std::string(ex.what()));
+        } catch (...) {
+            return crow::response(500, "Unknown Error");
+        }
+    });
+
+    CROW_ROUTE(server, "/user_meta_retrievingclips").methods(crow::HTTPMethod::PUT)
+    ([](const crow::request& req){
+        try {
+            if (req.body == ""){
+                return crow::response(400, "");
+            }
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
+
+            mysqlx::RowResult result = table.select("clipskeys")
+                                           .where("username = :username")
+                                           .bind("username", req.body)
+                                           .execute();
+            std::string response = "";
+            if (auto row = result.fetchOne()) {
+                response += row[0].get<std::string>();
+            }
+            return crow::response(response);
+            
+        } catch (const mysqlx::Error &err) {
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        }
+    });
+
+    CROW_ROUTE(server, "/user_meta_deletingclips").methods(crow::HTTPMethod::DELETE)
+    ([](const crow::request& req){
+        try {
+            if (req.body.empty()) {
+                return crow::response(400, "Empty request body");
+            }
+
+            // Parse username and clipId from request body
+            std::string body = req.body;
+            size_t comma = body.find(',');
+            if (comma == std::string::npos) {
+                return crow::response(400, "Invalid format: expected 'username,clipId'");
+            }
+            
+            std::string username = body.substr(0, comma);
+            std::string clipToDelete = body.substr(comma + 1);
+
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
+
+            mysqlx::RowResult result = table.select("clipskeys")
+                                           .where("username = :username")
+                                           .bind("username", username)
+                                           .execute();
+
+            if (auto row = result.fetchOne()) {
+                if (!row[0].isNull()) {
+                    std::string clips = row[0].get<std::string>();
+                    std::string updatedClips;
+                    size_t start = 0;
+                    size_t end = 0;
+                    
+                    while ((end = clips.find(',', start)) != std::string::npos) {
+                        std::string clip = clips.substr(start, end - start);
+                        if (clip != clipToDelete) {
+                            if (!updatedClips.empty()) updatedClips += ",";
+                            updatedClips += clip;
+                        }
+                        start = end + 1;
+                    }
+                    
+                    std::string lastClip = clips.substr(start);
+                    if (lastClip != clipToDelete) {
+                        if (!updatedClips.empty()) updatedClips += ",";
+                        updatedClips += lastClip;
+                    }
+
+                    table.update()
+                         .set("clipskeys", updatedClips)
+                         .where("username = :username")
+                         .bind("username", username)
+                         .execute();
+
+                    return crow::response(200, "Clip deleted successfully");
+                }
+            }
+            
+            return crow::response(404, "User or clips not found");
 
         } catch (const mysqlx::Error &err) {
             return crow::response(500, "MySQL Error: " + std::string(err.what()));
