@@ -141,9 +141,8 @@ int main(){
     try {
         
         if (req.body == ""){
-            return crow::response(400, "No username provided");
+            return crow::response(400, "");
         }
-
 
         std::cout << req.body << std::endl;
         mysqlx::Session session("127.0.0.1", 33060, "root", "test");
@@ -154,21 +153,11 @@ int main(){
                                          .bind("username", req.body)
                                          .execute();
 
-
         std::string response = "";
 
         if (auto row = result.fetchOne()) {
             response += row[0].get<std::string>() + "," + row[1].get<std::string>();
         }
-
-        // for (mysqlx::Row row : result) {
-        //     std::stringstream ss;
-        //     // username
-        //     ss << row[0] << ","; 
-        //     // password
-        //     ss << row[1];
-        //     response += ss.str();
-        // }
         std::cout << response << std::endl;
         return crow::response(response);
 
@@ -179,6 +168,44 @@ int main(){
     } catch (...) {
         return crow::response(500, "Unknown Error");
     }
+    });
+
+    // Route for storing user data in the data base
+    CROW_ROUTE(server, "/user_meta_storing").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        try {
+            if (req.body == ""){
+                return crow::response(400, "No data provided");
+            }
+
+            // Split username and password
+            std::string body = req.body;
+            size_t comma = body.find(',');
+            if (comma == std::string::npos) {
+                return crow::response(400, "Invalid format");
+            }
+            
+            std::string username = body.substr(0, comma);
+            std::string password = body.substr(comma + 1);
+
+            // Insert into database
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
+            
+            table.insert("username", "password")
+                 .values(username, password)
+                 .execute();
+
+            return crow::response(200, "User created successfully");
+
+        } catch (const mysqlx::Error &err) {
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        } catch (std::exception &ex) {
+            return crow::response(500, "Standard Exception: " + std::string(ex.what()));
+        } catch (...) {
+            return crow::response(500, "Unknown Error");
+        }
     });
 
 
