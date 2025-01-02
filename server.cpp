@@ -441,7 +441,9 @@ int main(){
                                            .execute();
             std::string response = "";
             if (auto row = result.fetchOne()) {
-                response += row[0].get<std::string>();
+                if (!row[0].isNull()) {
+                    response += row[0].get<std::string>();
+                }
             }
             return crow::response(response);
             
@@ -585,7 +587,6 @@ int main(){
             if (req.body.empty()) {
                 return crow::response(400, "Empty request body");
             }
-
             // Parse username and desired status from request body
             std::string body = req.body;
             size_t comma = body.find(',');
