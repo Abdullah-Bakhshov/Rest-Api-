@@ -362,6 +362,193 @@ int main(){
         }
     });
 
+    CROW_ROUTE(server, "/user_meta_following").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        try {
+            if (req.body.empty()) {
+                return crow::response(400, "Empty request body");
+            }
+
+            // Parse username and target username from request body
+            std::string body = req.body;
+            size_t comma = body.find(',');
+            if (comma == std::string::npos) {
+                return crow::response(400, "Invalid format: expected 'username,targetusername'");
+            }
+            
+            std::string username = body.substr(0, comma);
+            std::string targetUsername = body.substr(comma + 1);
+
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
+
+            // Get existing following list
+            mysqlx::RowResult result = table.select("following")
+                                           .where("username = :username")
+                                           .bind("username", username)
+                                           .execute();
+
+            if (auto row = result.fetchOne()) {
+                std::string existingFollowing;
+                // Check if the value is NULL
+                if (!row[0].isNull()) {
+                    existingFollowing = row[0].get<std::string>();
+                }
+                
+                std::string updatedFollowing = existingFollowing.empty() ? 
+                    targetUsername : existingFollowing + "," + targetUsername;
+                
+                table.update()
+                     .set("following", updatedFollowing)
+                     .where("username = :username")
+                     .bind("username", username)
+                     .execute();
+            } else {
+                // If no existing following list, just set the new target username
+                table.update()
+                     .set("following", targetUsername)
+                     .where("username = :username")
+                     .bind("username", username)
+                     .execute();
+            }
+
+            return crow::response(200, "Following list updated successfully");
+
+        } catch (const mysqlx::Error &err) {
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        } catch (std::exception &ex) {
+            return crow::response(500, "Standard Exception: " + std::string(ex.what()));
+        } catch (...) {
+            return crow::response(500, "Unknown Error");
+        }
+    });
+
+
+    CROW_ROUTE(server, "/user_meta_retrievingfollowing").methods(crow::HTTPMethod::PUT)
+    ([](const crow::request& req){
+        try {
+            if (req.body == ""){
+                return crow::response(400, "");
+            }
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
+
+            mysqlx::RowResult result = table.select("following")
+                                           .where("username = :username")
+                                           .bind("username", req.body)
+                                           .execute();
+            std::string response = "";
+            if (auto row = result.fetchOne()) {
+                response += row[0].get<std::string>();
+            }
+            return crow::response(response);
+            
+        } catch (const mysqlx::Error &err) {
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        }
+    });
+
+    CROW_ROUTE(server, "/user_meta_unfollowing").methods(crow::HTTPMethod::PUT)
+    ([](const crow::request& req){
+        try {
+            if (req.body.empty()) {
+                return crow::response(400, "Empty request body");
+            }
+
+            std::string body = req.body;
+            size_t comma = body.find(',');
+            if (comma == std::string::npos) {
+                return crow::response(400, "Invalid format: expected 'username,targetToUnfollow'");
+            }
+            
+            std::string username = body.substr(0, comma);
+            std::string targetToUnfollow = body.substr(comma + 1);
+
+            // Debug logging
+            std::cout << "Username: " << username << ", Target to unfollow: " << targetToUnfollow << std::endl;
+
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
+
+            mysqlx::RowResult result = table.select("following")
+                                           .where("username = :username")
+                                           .bind("username", username)
+                                           .execute();
+
+            if (auto row = result.fetchOne()) {
+                std::string following;
+                // Modified NULL check
+                if (row[0].isNull()) {
+                    std::cout << "Following list is NULL" << std::endl;
+                    return crow::response(404, "Following list is empty");
+                }
+                
+                following = row[0].get<std::string>();
+                std::cout << "Current following list: " << following << std::endl;
+                
+                if (following.empty()) {
+                    std::cout << "Following list is empty" << std::endl;
+                    return crow::response(404, "Following list is empty");
+                }
+
+                std::string updatedFollowing;
+                size_t start = 0;
+                size_t end = 0;
+                bool found = false;
+                
+                while ((end = following.find(',', start)) != std::string::npos) {
+                    std::string user = following.substr(start, end - start);
+                    if (user != targetToUnfollow) {
+                        if (!updatedFollowing.empty()) updatedFollowing += ",";
+                        updatedFollowing += user;
+                    } else {
+                        found = true;
+                    }
+                    start = end + 1;
+                }
+                
+                std::string lastUser = following.substr(start);
+                if (lastUser != targetToUnfollow) {
+                    if (!updatedFollowing.empty()) updatedFollowing += ",";
+                    updatedFollowing += lastUser;
+                } else {
+                    found = true;
+                }
+
+                if (!found) {
+                    std::cout << "Target user not found in following list" << std::endl;
+                    return crow::response(404, "User not found in following list");
+                }
+
+                std::cout << "Updated following list: " << updatedFollowing << std::endl;
+
+                table.update()
+                     .set("following", updatedFollowing)
+                     .where("username = :username")
+                     .bind("username", username)
+                     .execute();
+
+                return crow::response(200, "Unfollowed successfully");
+            }
+            
+            std::cout << "User not found" << std::endl;
+            return crow::response(404, "User not found");
+
+        } catch (const mysqlx::Error &err) {
+            std::cout << "MySQL Error: " << err.what() << std::endl;
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        } catch (std::exception &ex) {
+            std::cout << "Standard Exception: " << ex.what() << std::endl;
+            return crow::response(500, "Standard Exception: " + std::string(ex.what()));
+        } catch (...) {
+            std::cout << "Unknown Error" << std::endl;
+            return crow::response(500, "Unknown Error");
+        }
+    });
+
 
 
 
