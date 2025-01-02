@@ -549,8 +549,77 @@ int main(){
         }
     });
 
+    // Route to check if a user is public
+    CROW_ROUTE(server, "/user_meta_checkpublic").methods(crow::HTTPMethod::PUT)
+    ([](const crow::request& req){
+        try {
+            if (req.body.empty()) {
+                return crow::response(400, "Empty request body");
+            }
 
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
 
+            mysqlx::RowResult result = table.select("public")
+                                           .where("username = :username")
+                                           .bind("username", req.body)
+                                           .execute();
+
+            if (auto row = result.fetchOne()) {
+                bool isPublic = row[0].get<int>();
+                return crow::response(200, isPublic ? "1" : "0");
+            }
+            
+            return crow::response(404, "User not found");
+
+        } catch (const mysqlx::Error &err) {
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        }
+    });
+
+    // Route to toggle public/private status
+    CROW_ROUTE(server, "/user_meta_togglepublic").methods(crow::HTTPMethod::PUT)
+    ([](const crow::request& req){
+        try {
+            if (req.body.empty()) {
+                return crow::response(400, "Empty request body");
+            }
+
+            // Parse username and desired status from request body
+            std::string body = req.body;
+            size_t comma = body.find(',');
+            if (comma == std::string::npos) {
+                return crow::response(400, "Invalid format: expected 'username,status'");
+            }
+            
+            std::string username = body.substr(0, comma);
+            std::string status = body.substr(comma + 1);
+            
+            // Convert status string to int (0 or 1)
+            int publicStatus = (status == "1") ? 1 : 0;
+
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
+
+            // Update the public status
+            table.update()
+                 .set("public", publicStatus)
+                 .where("username = :username")
+                 .bind("username", username)
+                 .execute();
+
+            return crow::response(200, "Public status updated successfully");
+
+        } catch (const mysqlx::Error &err) {
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        } catch (std::exception &ex) {
+            return crow::response(500, "Standard Exception: " + std::string(ex.what()));
+        } catch (...) {
+            return crow::response(500, "Unknown Error");
+        }
+    });
 
     // Runs server, set default port to default (80) and used threading to handle multiple requests
     server.port(80).multithreaded().run();
