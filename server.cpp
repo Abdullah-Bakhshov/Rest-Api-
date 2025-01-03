@@ -622,6 +622,52 @@ int main(){
         }
     });
 
+    CROW_ROUTE(server, "/user_meta_stats").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        try {
+            if (req.body.empty()) {
+                return crow::response(400, "Empty request body");
+            }
+
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("restapi");
+            mysqlx::Table table = schema.getTable("Account");
+
+            // Select all stats columns for the given username
+            mysqlx::RowResult result = table.select("total_play_time", 
+                                                   "total_matches_play", 
+                                                   "longest_rally", 
+                                                   "average_points", 
+                                                   "average_session")
+                                           .where("username = :username")
+                                           .bind("username", req.body)
+                                           .execute();
+
+            if (auto row = result.fetchOne()) {
+                // Construct comma-separated string of stats
+                std::string response = std::to_string(row[0].get<int>()) + "," +
+                                     std::to_string(row[1].get<int>()) + "," +
+                                     std::to_string(row[2].get<int>()) + "," +
+                                     std::to_string(row[3].get<int>()) + "," +
+                                     std::to_string(row[4].get<int>());
+                
+                return crow::response(response);
+            }
+            
+            // If user not found, return zeros
+            return crow::response("0,0,0,0,0");
+
+        } catch (const mysqlx::Error &err) {
+            return crow::response(500, "MySQL Error: " + std::string(err.what()));
+        } catch (std::exception &ex) {
+            return crow::response(500, "Standard Exception: " + std::string(ex.what()));
+        } catch (...) {
+            return crow::response(500, "Unknown Error");
+        }
+    });
+
+
+
     // Runs server, set default port to default (80) and used threading to handle multiple requests
     server.port(80).multithreaded().run();
 
