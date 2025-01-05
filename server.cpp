@@ -1,4 +1,5 @@
 #include "crow.h"
+#include "crow/middlewares/cors.h"
 #include <asio.hpp>
 #include <fstream>
 #include <iostream>
@@ -29,13 +30,16 @@ int main(){
 
     // Instance of the api server I'm creating
     // crow::App<ContextData> server;
-    crow::SimpleApp server; // testing
-
+    crow::SimpleApp server;
 
     // Route for root
     CROW_ROUTE(server, "/")
-    ([](){
-        return "this is root";
+    ([](const crow::request& req){
+        crow::response r("this is root");
+        r.add_header("Access-Control-Allow-Origin", "*");
+        r.add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+        r.add_header("Access-Control-Allow-Headers", "Content-Type");
+        return r;
     });
 
     
@@ -663,6 +667,66 @@ int main(){
             return crow::response(500, "Standard Exception: " + std::string(ex.what()));
         } catch (...) {
             return crow::response(500, "Unknown Error");
+        }
+    });
+
+
+
+
+
+    // Website saving sign ups Routing
+    CROW_ROUTE(server, "/website_saving_sign_ups").methods(crow::HTTPMethod::POST)
+    ([](const crow::request& req){
+        try {
+            if (req.body.empty()) {
+                crow::response r(400, "Empty request body");
+                r.add_header("Access-Control-Allow-Origin", "*");
+                r.add_header("Access-Control-Allow-Methods", "POST");
+                r.add_header("Access-Control-Allow-Headers", "Content-Type");
+                return r;
+            }
+
+            // Parse the input string
+            std::string body = req.body;
+            size_t first_comma = body.find(',');
+            if (first_comma == std::string::npos) {
+                return crow::response(400, "Invalid format: expected 'email,firstname,lastname'");
+            }
+            
+            size_t second_comma = body.find(',', first_comma + 1);
+            if (second_comma == std::string::npos) {
+                return crow::response(400, "Invalid format: expected 'email,firstname,lastname'");
+            }
+
+            std::string email = body.substr(0, first_comma);
+            std::string firstname = body.substr(first_comma + 1, second_comma - first_comma - 1);
+            std::string lastname = body.substr(second_comma + 1);
+
+            // Validate that no field is empty
+            if (email.empty() || firstname.empty() || lastname.empty()) {
+                return crow::response(400, "All fields must be non-empty");
+            }
+
+            mysqlx::Session session("127.0.0.1", 33060, "root", "test");
+            mysqlx::Schema schema = session.getSchema("SignupSmash");
+            mysqlx::Table table = schema.getTable("Details");
+            
+            table.insert("email", "first_name", "last_name")
+                 .values(email, firstname, lastname)
+                 .execute();
+
+            crow::response r(200, "Sign-up details saved successfully");
+            r.add_header("Access-Control-Allow-Origin", "*");
+            r.add_header("Access-Control-Allow-Methods", "POST");
+            r.add_header("Access-Control-Allow-Headers", "Content-Type");
+            return r;
+
+        } catch (const std::exception& e) {
+            crow::response r(500, std::string("Error: ") + e.what());
+            r.add_header("Access-Control-Allow-Origin", "*");
+            r.add_header("Access-Control-Allow-Methods", "POST");
+            r.add_header("Access-Control-Allow-Headers", "Content-Type");
+            return r;
         }
     });
 
